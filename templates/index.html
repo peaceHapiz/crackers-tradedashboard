@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="id" x-data="app()" x-init="init()">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TradeDashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: #1e293b; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+    .pulse-green { animation: pulseGreen 2s infinite; }
+    @keyframes pulseGreen {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
+      50% { box-shadow: 0 0 0 6px rgba(34,197,94,0); }
+    }
+    .log-row { animation: fadeIn .3s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen font-mono">
+
+<!-- ── NAVBAR ─────────────────────────────────────────── -->
+<nav class="bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center justify-between sticky top-0 z-50">
+  <div class="flex items-center gap-3">
+    <div class="w-2 h-2 rounded-full bg-emerald-400 pulse-green"></div>
+    <span class="text-white font-semibold tracking-wider text-sm">TRADE<span class="text-emerald-400">DASHBOARD</span></span>
+  </div>
+  <div class="flex gap-1">
+    <button @click="tab='dashboard'" :class="tab==='dashboard' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'"
+      class="px-4 py-1.5 rounded text-xs transition">Dashboard</button>
+    <button @click="tab='accounts'; loadAccounts()" :class="tab==='accounts' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'"
+      class="px-4 py-1.5 rounded text-xs transition">Akun MT5</button>
+    <button @click="tab='logs'; loadLogs()" :class="tab==='logs' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'"
+      class="px-4 py-1.5 rounded text-xs transition">Log Signal</button>
+  </div>
+  <div class="text-xs text-slate-500" x-text="wsStatus"></div>
+</nav>
+
+<!-- ── MAIN ───────────────────────────────────────────── -->
+<main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+  <!-- TOAST -->
+  <div x-show="toast.show" x-cloak x-transition
+    class="fixed top-16 right-4 z-50 px-4 py-2 rounded text-sm font-sans shadow-lg"
+    :class="toast.type==='ok' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'"
+    x-text="toast.msg"></div>
+
+  <!-- ══ TAB: DASHBOARD ══════════════════════════════════ -->
+  <div x-show="tab==='dashboard'" x-cloak>
+
+    <!-- Stats cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+        <p class="text-slate-500 text-xs mb-1">Total Akun</p>
+        <p class="text-2xl font-bold text-white" x-text="accounts.length"></p>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+        <p class="text-slate-500 text-xs mb-1">Bot Aktif</p>
+        <p class="text-2xl font-bold text-emerald-400" x-text="accounts.filter(a=>a.is_running).length"></p>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+        <p class="text-slate-500 text-xs mb-1">Log Hari Ini</p>
+        <p class="text-2xl font-bold text-sky-400" x-text="liveLogs.length"></p>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+        <p class="text-slate-500 text-xs mb-1">WS Stream</p>
+        <p class="text-sm font-bold" :class="wsConnected ? 'text-emerald-400':'text-red-400'"
+           x-text="wsConnected ? 'LIVE':'OFFLINE'"></p>
+      </div>
+    </div>
+
+    <!-- Bot status per akun -->
+    <div class="bg-slate-900 border border-slate-800 rounded-lg p-4 mb-6">
+      <h2 class="text-xs text-slate-400 uppercase tracking-wider mb-3">Status Bot Per Akun</h2>
+      <div x-show="accounts.length===0" class="text-slate-500 text-sm">Belum ada akun. Tambah di tab Akun MT5.</div>
+      <div class="space-y-2">
+        <template x-for="acc in accounts" :key="acc.id">
+          <div class="flex items-center justify-between bg-slate-800 rounded px-4 py-3">
+            <div class="flex items-center gap-3">
+              <div class="w-2 h-2 rounded-full" :class="acc.is_running ? 'bg-emerald-400 pulse-green':'bg-slate-600'"></div>
+              <div>
+                <span class="text-white text-sm font-semibold" x-text="acc.login"></span>
+                <span class="text-slate-500 text-xs ml-2" x-text="acc.broker + ' · ' + acc.server"></span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs px-2 py-0.5 rounded" :class="acc.is_running ? 'bg-emerald-900 text-emerald-300':'bg-slate-700 text-slate-400'"
+                x-text="acc.is_running ? 'RUNNING':'STOPPED'"></span>
+              <!-- Start/Stop -->
+              <button x-show="!acc.is_running" @click="openStartModal(acc)"
+                class="text-xs bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-1 rounded transition">Start</button>
+              <button x-show="acc.is_running" @click="doStopBot(acc)"
+                class="text-xs bg-red-700 hover:bg-red-600 text-white px-3 py-1 rounded transition">Stop</button>
+              <!-- Config -->
+              <button @click="openConfigModal(acc)"
+                class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded transition">⚙ Config</button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- Live log stream -->
+    <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-xs text-slate-400 uppercase tracking-wider">Live Signal Stream</h2>
+        <button @click="liveLogs=[]" class="text-xs text-slate-500 hover:text-white transition">Clear</button>
+      </div>
+      <div class="h-64 overflow-y-auto scrollbar-thin space-y-1 font-mono text-xs" id="liveLogBox">
+        <div x-show="liveLogs.length===0" class="text-slate-600 py-8 text-center">Menunggu sinyal...</div>
+        <template x-for="(log,i) in liveLogs.slice().reverse()" :key="i">
+          <div class="log-row flex gap-2 items-start px-2 py-1 rounded hover:bg-slate-800 transition">
+            <span class="text-slate-600 shrink-0 w-36" x-text="log.created_at ? log.created_at.replace('T',' ').slice(0,19) : ''"></span>
+            <span class="shrink-0 w-16 font-bold"
+              :class="log.signal==='BUY' ? 'text-emerald-400' : log.signal==='SELL' ? 'text-red-400' : 'text-yellow-400'"
+              x-text="log.signal || '-'"></span>
+            <span class="text-sky-300 shrink-0 w-12" x-text="log.symbol || '-'"></span>
+            <span class="text-slate-400 shrink-0 w-20">conf: <span class="text-white" x-text="log.confidence ? parseFloat(log.confidence).toFixed(3) : '-'"></span></span>
+            <span class="text-slate-400 shrink-0 w-20">lot: <span class="text-white" x-text="log.lot || '-'"></span></span>
+            <span class="px-1.5 py-0.5 rounded text-xs shrink-0"
+              :class="{
+                'bg-emerald-900 text-emerald-300': log.status==='EXECUTED',
+                'bg-red-900 text-red-300': log.status==='REJECTED',
+                'bg-yellow-900 text-yellow-300': log.status==='PENDING',
+                'bg-slate-700 text-slate-300': !['EXECUTED','REJECTED','PENDING'].includes(log.status)
+              }"
+              x-text="log.status"></span>
+            <span class="text-slate-500 truncate" x-text="log.account_login || ''"></span>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: AKUN MT5 ══════════════════════════════════ -->
+  <div x-show="tab==='accounts'" x-cloak>
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-sm text-white font-semibold">Manajemen Akun MetaTrader 5</h2>
+      <button @click="openAddAccount()"
+        class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs px-4 py-2 rounded transition">+ Tambah Akun</button>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
+      <table class="w-full text-xs">
+        <thead>
+          <tr class="border-b border-slate-800 text-slate-400">
+            <th class="px-4 py-3 text-left">Login</th>
+            <th class="px-4 py-3 text-left">Broker</th>
+            <th class="px-4 py-3 text-left">Server</th>
+            <th class="px-4 py-3 text-center">Status</th>
+            <th class="px-4 py-3 text-center">Bot</th>
+            <th class="px-4 py-3 text-center">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr x-show="accounts.length===0">
+            <td colspan="6" class="text-center py-10 text-slate-600">Belum ada akun MT5.</td>
+          </tr>
+          <template x-for="acc in accounts" :key="acc.id">
+            <tr class="border-b border-slate-800 hover:bg-slate-800 transition">
+              <td class="px-4 py-3 text-white font-semibold" x-text="acc.login"></td>
+              <td class="px-4 py-3 text-slate-300" x-text="acc.broker"></td>
+              <td class="px-4 py-3 text-slate-400" x-text="acc.server"></td>
+              <td class="px-4 py-3 text-center">
+                <button @click="toggleActive(acc)"
+                  class="px-2 py-0.5 rounded text-xs transition"
+                  :class="acc.is_active ? 'bg-emerald-900 text-emerald-300 hover:bg-emerald-800':'bg-slate-700 text-slate-400 hover:bg-slate-600'"
+                  x-text="acc.is_active ? 'Active':'Inactive'"></button>
+              </td>
+              <td class="px-4 py-3 text-center">
+                <span class="px-2 py-0.5 rounded text-xs"
+                  :class="acc.is_running ? 'bg-emerald-900 text-emerald-300':'bg-slate-700 text-slate-500'"
+                  x-text="acc.is_running ? 'Running':'Stopped'"></span>
+              </td>
+              <td class="px-4 py-3 text-center flex gap-1 justify-center">
+                <button @click="openEditAccount(acc)"
+                  class="bg-sky-800 hover:bg-sky-700 text-white px-2 py-1 rounded transition">Edit</button>
+                <button @click="openConfigModal(acc)"
+                  class="bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded transition">Config</button>
+                <button @click="deleteAccount(acc)"
+                  class="bg-red-900 hover:bg-red-800 text-white px-2 py-1 rounded transition">Hapus</button>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ TAB: LOG SIGNAL ════════════════════════════════ -->
+  <div x-show="tab==='logs'" x-cloak>
+    <div class="flex justify-between items-center mb-4 gap-2 flex-wrap">
+      <h2 class="text-sm text-white font-semibold">Riwayat Log Signal</h2>
+      <div class="flex gap-2 items-center">
+        <select x-model="logFilter" @change="loadLogs()"
+          class="bg-slate-800 border border-slate-700 text-xs text-white px-3 py-1.5 rounded">
+          <option value="">Semua Akun</option>
+          <template x-for="acc in accounts" :key="acc.id">
+            <option :value="acc.id" x-text="acc.login"></option>
+          </template>
+        </select>
+        <button @click="loadLogs()" class="bg-slate-700 hover:bg-slate-600 text-white text-xs px-3 py-1.5 rounded">Refresh</button>
+      </div>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="border-b border-slate-800 text-slate-400">
+              <th class="px-3 py-3 text-left">Waktu</th>
+              <th class="px-3 py-3 text-left">Akun</th>
+              <th class="px-3 py-3 text-left">Symbol</th>
+              <th class="px-3 py-3 text-center">Signal</th>
+              <th class="px-3 py-3 text-center">Conf.</th>
+              <th class="px-3 py-3 text-center">Lot</th>
+              <th class="px-3 py-3 text-center">Price</th>
+              <th class="px-3 py-3 text-center">Status</th>
+              <th class="px-3 py-3 text-left">Message</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr x-show="historicalLogs.length===0">
+              <td colspan="9" class="text-center py-10 text-slate-600">Tidak ada log.</td>
+            </tr>
+            <template x-for="log in historicalLogs" :key="log.id">
+              <tr class="border-b border-slate-800 hover:bg-slate-800 transition">
+                <td class="px-3 py-2 text-slate-400" x-text="log.created_at ? log.created_at.replace('T',' ').slice(0,19) : ''"></td>
+                <td class="px-3 py-2 text-slate-300" x-text="log.account_login || '-'"></td>
+                <td class="px-3 py-2 text-sky-300 font-semibold" x-text="log.symbol || '-'"></td>
+                <td class="px-3 py-2 text-center font-bold"
+                  :class="log.signal==='BUY'?'text-emerald-400':log.signal==='SELL'?'text-red-400':'text-yellow-400'"
+                  x-text="log.signal || '-'"></td>
+                <td class="px-3 py-2 text-center" x-text="log.confidence ? parseFloat(log.confidence).toFixed(3) : '-'"></td>
+                <td class="px-3 py-2 text-center" x-text="log.lot || '-'"></td>
+                <td class="px-3 py-2 text-center" x-text="log.price || '-'"></td>
+                <td class="px-3 py-2 text-center">
+                  <span class="px-1.5 py-0.5 rounded"
+                    :class="{
+                      'bg-emerald-900 text-emerald-300': log.status==='EXECUTED',
+                      'bg-red-900 text-red-300': log.status==='REJECTED',
+                      'bg-yellow-900 text-yellow-300': log.status==='PENDING',
+                      'bg-slate-700 text-slate-300': !['EXECUTED','REJECTED','PENDING'].includes(log.status)
+                    }"
+                    x-text="log.status"></span>
+                </td>
+                <td class="px-3 py-2 text-slate-500 max-w-xs truncate" x-text="log.message || ''"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+      <!-- Pagination -->
+      <div class="flex justify-between items-center px-4 py-3 border-t border-slate-800">
+        <span class="text-xs text-slate-500">Offset: <span x-text="logOffset"></span></span>
+        <div class="flex gap-2">
+          <button @click="logOffset=Math.max(0,logOffset-100); loadLogs()" :disabled="logOffset===0"
+            class="text-xs px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-30 text-white">← Prev</button>
+          <button @click="logOffset+=100; loadLogs()"
+            class="text-xs px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 text-white">Next →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ══ MODAL: Tambah/Edit Akun ════════════════════════ -->
+<div x-show="modal.account" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+  <div @click.outside="modal.account=false" class="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md p-6">
+    <h3 class="text-white font-semibold mb-4" x-text="form.account.id ? 'Edit Akun MT5' : 'Tambah Akun MT5'"></h3>
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs text-slate-400 mb-1 block">Login (nomor akun)</label>
+        <input x-model="form.account.login" type="text" placeholder="123456"
+          class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500">
+      </div>
+      <div>
+        <label class="text-xs text-slate-400 mb-1 block">Password</label>
+        <input x-model="form.account.password" type="password" placeholder="••••••••"
+          class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500">
+      </div>
+      <div>
+        <label class="text-xs text-slate-400 mb-1 block">Broker</label>
+        <input x-model="form.account.broker" type="text" placeholder="ICMarkets, Exness, dll"
+          class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500">
+      </div>
+      <div>
+        <label class="text-xs text-slate-400 mb-1 block">Server</label>
+        <input x-model="form.account.server" type="text" placeholder="ICMarketsSC-Demo"
+          class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500">
+      </div>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" x-model="form.account.is_active" class="rounded">
+        <span class="text-xs text-slate-400">Aktifkan akun</span>
+      </label>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button @click="saveAccount()"
+        class="flex-1 bg-emerald-700 hover:bg-emerald-600 text-white py-2 rounded text-sm transition">Simpan</button>
+      <button @click="modal.account=false"
+        class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded text-sm transition">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Config Bot ══════════════════════════════ -->
+<div x-show="modal.config" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+  <div @click.outside="modal.config=false" class="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md p-6">
+    <h3 class="text-white font-semibold mb-1">Konfigurasi Bot</h3>
+    <p class="text-slate-500 text-xs mb-4">Akun: <span class="text-sky-400" x-text="form.config.login"></span></p>
+    <div class="space-y-4">
+      <div>
+        <div class="flex justify-between mb-1">
+          <label class="text-xs text-slate-400">Lot Size</label>
+          <span class="text-xs text-white" x-text="parseFloat(form.config.lot_size).toFixed(2)"></span>
+        </div>
+        <input type="range" x-model="form.config.lot_size" min="0.01" max="10" step="0.01"
+          class="w-full accent-emerald-400">
+        <div class="flex justify-between text-xs text-slate-600 mt-0.5"><span>0.01</span><span>10.00</span></div>
+      </div>
+      <div>
+        <div class="flex justify-between mb-1">
+          <label class="text-xs text-slate-400">Percent Risk (%)</label>
+          <span class="text-xs text-white" x-text="parseFloat(form.config.percent_risk).toFixed(1) + '%'"></span>
+        </div>
+        <input type="range" x-model="form.config.percent_risk" min="0.1" max="20" step="0.1"
+          class="w-full accent-sky-400">
+        <div class="flex justify-between text-xs text-slate-600 mt-0.5"><span>0.1%</span><span>20%</span></div>
+      </div>
+      <div>
+        <div class="flex justify-between mb-1">
+          <label class="text-xs text-slate-400">Confidence Threshold</label>
+          <span class="text-xs text-white" x-text="parseFloat(form.config.confidence_threshold).toFixed(2)"></span>
+        </div>
+        <input type="range" x-model="form.config.confidence_threshold" min="0.1" max="1.0" step="0.01"
+          class="w-full accent-violet-400">
+        <div class="flex justify-between text-xs text-slate-600 mt-0.5"><span>0.10</span><span>1.00</span></div>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button @click="saveConfig()"
+        class="flex-1 bg-emerald-700 hover:bg-emerald-600 text-white py-2 rounded text-sm transition">Simpan</button>
+      <button @click="modal.config=false"
+        class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded text-sm transition">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Start Bot ═══════════════════════════════ -->
+<div x-show="modal.start" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+  <div @click.outside="modal.start=false" class="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md p-6">
+    <h3 class="text-white font-semibold mb-1">Start Bot</h3>
+    <p class="text-slate-500 text-xs mb-4">Akun: <span class="text-sky-400" x-text="form.start.login"></span></p>
+    <div>
+      <label class="text-xs text-slate-400 mb-1 block">Path ke Script Python Bot</label>
+      <input x-model="form.start.script_path" type="text" placeholder="C:\bot\livetrader.py"
+        class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500">
+      <p class="text-xs text-slate-600 mt-1">Contoh: C:\tradebot\live.py</p>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button @click="doStartBot()"
+        class="flex-1 bg-emerald-700 hover:bg-emerald-600 text-white py-2 rounded text-sm transition">▶ Start</button>
+      <button @click="modal.start=false"
+        class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded text-sm transition">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCRIPT ══════════════════════════════════════════ -->
+<script>
+function app() {
+  return {
+    tab: 'dashboard',
+    accounts: [],
+    liveLogs: [],
+    historicalLogs: [],
+    logFilter: '',
+    logOffset: 0,
+    wsStatus: 'Connecting...',
+    wsConnected: false,
+    ws: null,
+    toast: { show: false, msg: '', type: 'ok' },
+    modal: { account: false, config: false, start: false },
+    form: {
+      account: { id: null, login: '', password: '', broker: '', server: '', is_active: true },
+      config:  { account_id: null, login: '', lot_size: 0.01, percent_risk: 1.0, confidence_threshold: 0.7 },
+      start:   { account_id: null, login: '', script_path: '' }
+    },
+
+    async init() {
+      await this.loadAccounts();
+      this.connectWS();
+    },
+
+    // ── WebSocket ──────────────────────────────────────
+    connectWS() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      this.ws = new WebSocket(`${proto}://${location.host}/ws/logs`);
+      this.wsStatus = 'Connecting...';
+
+      this.ws.onopen = () => {
+        this.wsConnected = true;
+        this.wsStatus = 'Live';
+      };
+      this.ws.onmessage = (e) => {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'log') {
+          this.liveLogs.push(msg.data);
+          if (this.liveLogs.length > 200) this.liveLogs.shift();
+        }
+      };
+      this.ws.onclose = () => {
+        this.wsConnected = false;
+        this.wsStatus = 'Reconnecting...';
+        setTimeout(() => this.connectWS(), 3000);
+      };
+      this.ws.onerror = () => {
+        this.wsConnected = false;
+        this.wsStatus = 'Error';
+      };
+    },
+
+    // ── Toast ──────────────────────────────────────────
+    showToast(msg, type='ok') {
+      this.toast = { show: true, msg, type };
+      setTimeout(() => this.toast.show = false, 3000);
+    },
+
+    // ── Accounts ───────────────────────────────────────
+    async loadAccounts() {
+      const res = await fetch('/api/accounts/');
+      this.accounts = await res.json();
+    },
+
+    openAddAccount() {
+      this.form.account = { id: null, login: '', password: '', broker: '', server: '', is_active: true };
+      this.modal.account = true;
+    },
+
+    openEditAccount(acc) {
+      this.form.account = { id: acc.id, login: acc.login, password: '', broker: acc.broker, server: acc.server, is_active: acc.is_active };
+      this.modal.account = true;
+    },
+
+    async saveAccount() {
+      const f = this.form.account;
+      const isEdit = !!f.id;
+      const url  = isEdit ? `/api/accounts/${f.id}` : '/api/accounts/';
+      const method = isEdit ? 'PUT' : 'POST';
+      const body = { login: f.login, broker: f.broker, server: f.server, is_active: f.is_active };
+      if (f.password) body.password = f.password;
+      if (!isEdit) body.password = f.password;
+
+      const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (res.ok) {
+        this.showToast(isEdit ? 'Akun diperbarui.' : 'Akun ditambahkan.');
+        this.modal.account = false;
+        await this.loadAccounts();
+      } else {
+        this.showToast(data.detail || 'Gagal.', 'err');
+      }
+    },
+
+    async toggleActive(acc) {
+      await fetch(`/api/accounts/${acc.id}/toggle`, { method: 'PATCH' });
+      await this.loadAccounts();
+    },
+
+    async deleteAccount(acc) {
+      if (!confirm(`Hapus akun ${acc.login}? Bot akan dihentikan jika sedang jalan.`)) return;
+      await fetch(`/api/accounts/${acc.id}`, { method: 'DELETE' });
+      this.showToast('Akun dihapus.');
+      await this.loadAccounts();
+    },
+
+    // ── Config ─────────────────────────────────────────
+    async openConfigModal(acc) {
+      this.form.config.account_id = acc.id;
+      this.form.config.login = acc.login;
+      const res = await fetch(`/api/config/${acc.id}`);
+      if (res.ok) {
+        const d = await res.json();
+        this.form.config.lot_size = d.lot_size;
+        this.form.config.percent_risk = d.percent_risk;
+        this.form.config.confidence_threshold = d.confidence_threshold;
+      }
+      this.modal.config = true;
+    },
+
+    async saveConfig() {
+      const f = this.form.config;
+      const res = await fetch(`/api/config/${f.account_id}`, {
+        method: 'PUT',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          lot_size: parseFloat(f.lot_size),
+          percent_risk: parseFloat(f.percent_risk),
+          confidence_threshold: parseFloat(f.confidence_threshold)
+        })
+      });
+      if (res.ok) {
+        this.showToast('Konfigurasi disimpan.');
+        this.modal.config = false;
+        await this.loadAccounts();
+      } else {
+        this.showToast('Gagal menyimpan config.', 'err');
+      }
+    },
+
+    // ── Bot Start/Stop ─────────────────────────────────
+    openStartModal(acc) {
+      this.form.start = { account_id: acc.id, login: acc.login, script_path: '' };
+      this.modal.start = true;
+    },
+
+    async doStartBot() {
+      const f = this.form.start;
+      if (!f.script_path) { this.showToast('Path script wajib diisi.', 'err'); return; }
+      const res = await fetch(`/api/bot/${f.account_id}/start`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ script_path: f.script_path })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        this.showToast(`Bot started! PID: ${data.message}`);
+        this.modal.start = false;
+        await this.loadAccounts();
+      } else {
+        this.showToast(data.detail || 'Gagal start.', 'err');
+      }
+    },
+
+    async doStopBot(acc) {
+      if (!confirm(`Stop bot akun ${acc.login}?`)) return;
+      const res = await fetch(`/api/bot/${acc.id}/stop`, { method: 'POST' });
+      const data = await res.json();
+      this.showToast(data.message);
+      await this.loadAccounts();
+    },
+
+    // ── Logs ───────────────────────────────────────────
+    async loadLogs() {
+      let url = `/api/logs/?limit=100&offset=${this.logOffset}`;
+      if (this.logFilter) url += `&account_id=${this.logFilter}`;
+      const res = await fetch(url);
+      this.historicalLogs = await res.json();
+    },
+  }
+}
+</script>
+</body>
+</html>
