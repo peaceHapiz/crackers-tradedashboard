@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', 'Geist', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  html.dark {
+    @apply bg-dark-bg text-dark-text;
+  }
+  
+  html.light {
+    @apply bg-light-bg text-light-text;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-md border transition-colors;
+  }
+  
+  .dark .card {
+    @apply bg-dark-surface border-dark-border;
+  }
+  
+  .light .card {
+    @apply bg-light-surface border-light-border shadow-sm;
+  }
+  
+  .btn-primary {
+    @apply px-4 py-2 rounded-md font-medium text-white transition-all;
+    background: linear-gradient(135deg, #f97316, #fb923c);
+  }
+  
+  .btn-primary:hover {
+    @apply opacity-90;
+  }
+  
+  .btn-secondary {
+    @apply px-4 py-2 rounded-md font-medium transition-colors;
+  }
+  
+  .dark .btn-secondary {
+    @apply bg-dark-surface border border-dark-border text-dark-text hover:bg-dark-border;
+  }
+  
+  .light .btn-secondary {
+    @apply bg-light-surface border border-light-border text-light-text hover:bg-light-border;
+  }
+  
+  .profit-text {
+    @apply text-profit dark:text-profit;
+  }
+  
+  .loss-text {
+    @apply text-loss dark:text-loss;
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "accounts": [
+    {
+      "id": 1,
+      "login": "12345678",
+      "broker": "ICMarkets",
+      "server": "ICMarkets-Demo",
+      "balance": 12500.00,
+      "equity": 12350.50,
+      "margin": 2500.00,
+      "freeMargin": 9850.50,
+      "marginLevel": 494.02,
+      "unrealizedPnL": -149.50,
+      "status": "connected",
+      "leverage": "1:500"
+    },
+    {
+      "id": 2,
+      "login": "87654321",
+      "broker": "Exness",
+      "server": "Exness-Real",
+      "balance": 8500.00,
+      "equity": 8920.30,
+      "margin": 1800.00,
+      "freeMargin": 7120.30,
+      "marginLevel": 495.57,
+      "unrealizedPnL": 420.30,
+      "status": "connected",
+      "leverage": "1:200"
+    },
+    {
+      "id": 3,
+      "login": "11223344",
+      "broker": "XM",
+      "server": "XMGlobal-Real",
+      "balance": 3000.00,
+      "equity": 2850.00,
+      "margin": 1500.00,
+      "freeMargin": 1350.00,
+      "marginLevel": 190.00,
+      "unrealizedPnL": -150.00,
+      "status": "disconnected",
+      "leverage": "1:100"
+    }
+  ]
+}

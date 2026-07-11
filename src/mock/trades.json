@@ -1,0 +1,38 @@
+[
+  {
+    "orderId": "TXN001",
+    "symbol": "EURUSD",
+    "type": "BUY",
+    "lots": 0.5,
+    "openPrice": 1.0850,
+    "closePrice": 1.0890,
+    "openTime": "2026-07-11 08:30:00",
+    "closeTime": "2026-07-11 14:45:00",
+    "pnl": 200.00,
+    "status": "closed"
+  },
+  {
+    "orderId": "TXN002",
+    "symbol": "GBPUSD",
+    "type": "SELL",
+    "lots": 0.3,
+    "openPrice": 1.2650,
+    "closePrice": 1.2680,
+    "openTime": "2026-07-11 10:00:00",
+    "closeTime": "2026-07-11 16:30:00",
+    "pnl": -90.00,
+    "status": "closed"
+  },
+  {
+    "orderId": "TXN003",
+    "symbol": "XAUUSD",
+    "type": "BUY",
+    "lots": 0.1,
+    "openPrice": 2350.50,
+    "closePrice": null,
+    "openTime": "2026-07-11 12:00:00",
+    "closeTime": null,
+    "pnl": 125.50,
+    "status": "open"
+  }
+]

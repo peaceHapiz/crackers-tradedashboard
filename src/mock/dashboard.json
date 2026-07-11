@@ -1,0 +1,33 @@
+{
+  "equityCurve": [
+    { "date": "2026-07-04", "equity": 12000 },
+    { "date": "2026-07-05", "equity": 12150 },
+    { "date": "2026-07-06", "equity": 11800 },
+    { "date": "2026-07-07", "equity": 12300 },
+    { "date": "2026-07-08", "equity": 12100 },
+    { "date": "2026-07-09", "equity": 12400 },
+    { "date": "2026-07-10", "equity": 12350 },
+    { "date": "2026-07-11", "equity": 12550 }
+  ],
+  "dailyPnL": [
+    { "date": "2026-07-04", "pnl": 250.50 },
+    { "date": "2026-07-05", "pnl": -120.30 },
+    { "date": "2026-07-06", "pnl": -380.20 },
+    { "date": "2026-07-07", "pnl": 520.00 },
+    { "date": "2026-07-08", "pnl": -150.80 },
+    { "date": "2026-07-09", "pnl": 340.00 },
+    { "date": "2026-07-10", "pnl": -45.50 },
+    { "date": "2026-07-11", "pnl": 185.30 }
+  ],
+  "topMovers": [
+    { "account": "12345678", "broker": "ICMarkets", "pnl": 520.00, "type": "profit" },
+    { "account": "87654321", "broker": "Exness", "pnl": -380.20, "type": "loss" },
+    { "account": "11223344", "broker": "XM", "pnl": 340.00, "type": "profit" }
+  ],
+  "summary": {
+    "totalEquity": 24125.80,
+    "totalBalance": 24000.00,
+    "totalFloatingPnL": 125.80,
+    "avgMarginLevel": 393.20
+  }
+}

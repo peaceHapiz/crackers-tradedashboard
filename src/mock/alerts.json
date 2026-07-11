@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "ruleName": "Max Drawdown Alert",
+    "condition": "drawdown > 10%",
+    "status": "active",
+    "triggeredCount": 2,
+    "lastTriggered": "2026-07-10 15:30:00"
+  },
+  {
+    "id": 2,
+    "ruleName": "Margin Call Warning",
+    "condition": "marginLevel < 150%",
+    "status": "active",
+    "triggeredCount": 0,
+    "lastTriggered": null
+  },
+  {
+    "id": 3,
+    "ruleName": "Daily Loss Limit",
+    "condition": "dailyLoss > $500",
+    "status": "paused",
+    "triggeredCount": 5,
+    "lastTriggered": "2026-07-08 18:45:00"
+  }
+]
